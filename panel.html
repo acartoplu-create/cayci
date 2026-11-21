@@ -50,7 +50,7 @@ document.addEventListener('click',async e=>{const t=e.target.closest('button');
  if(t&&t.dataset.a==='ovgo|'){t.disabled=true;const items=Object.entries(addQ).map(([n,q])=>({n,q,p:PRICE[n]}));const total=items.reduce((s,i)=>s+i.q*i.p,0);try{await addDoc(collection(db,'orders'),{type:'order',no:'#'+(100+Math.floor(Math.random()*900)),table:addT,items,total,paid:false,payType:'later',phone:'',status:'new',createdAt:serverTimestamp()});addT=null;ovDraw()}catch(x){alert('Eklenemedi: '+x.message);t.disabled=false}return}
  const cu=e.target.closest('[data-cu]');if(cu){selId=cu.dataset.cu;draw();return}
  if(!t)return;
- if(t.id==='in'){try{await signInWithPopup(auth,new GoogleAuthProvider())}catch(x){if(x.code==='auth/popup-blocked')signInWithRedirect(auth,new GoogleAuthProvider());else document.getElementById('e').textContent='Giriş yapılamadı: '+x.code}}
+ if(t.id==='in'){const gp=new GoogleAuthProvider();gp.setCustomParameters({prompt:'select_account'});const em=document.getElementById('e');try{await signInWithPopup(auth,gp)}catch(x){if(x.code==='auth/cancelled-popup-request'){return}try{em.textContent='Yönlendiriliyor…';await signInWithRedirect(auth,gp)}catch(y){em.textContent='Giriş yapılamadı: '+(y.code||x.code)}}}
  else if(t.id==='out')signOut(auth)
  else if(t.id==='dprev'||t.id==='dnext'){const d=new Date(dayStr+'T12:00:00');d.setDate(d.getDate()+(t.id==='dnext'?1:-1));dayStr=d.toLocaleDateString('sv-SE');draw()}
  else if(t.dataset.v){view=t.dataset.v;selId=null;draw()}
