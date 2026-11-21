@@ -30,19 +30,26 @@ const TL=n=>(n||0).toLocaleString('tr-TR',{maximumFractionDigits:2})+' ₺',KR=1
 const fk=n=>(Math.round(n*100)/100).toLocaleString('tr-TR')+' kontör';
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const P=v=>String(v||'').replace(/\D/g,'').slice(-10);
-let docs=[],custs=[],view='open',first=true,unsubs=[],selId=null;
+const PRICE={'İnce Belli Bardak Çay':10,'Karton Bardak Çay':20,'Türk Kahvesi':60,'Nescafe':30,'Sahlep':30,'Ihlamur':40,'Adaçayı':40,'Kış Çayı':45,'Nane Limon':40,'Su':20,'Maden Suyu':30,'Limonlu Maden Suyu':35,'Ayran':25,'Limonata':20,'Avşar Meyve Suyu':40,'Karışık Meyve Nektarı':25,'Simit':25,'Kaşarlı Tost':70,'Poğaça':30};
+const ip=i=>i.p!=null?i.p:(PRICE[i.n]||0);
+let dayStr=new Date().toLocaleDateString('sv-SE'),docs=[],custs=[],view='open',first=true,unsubs=[],selId=null;
 const byPhone=p=>custs.find(c=>c.phone===p);
+document.addEventListener('change',e=>{if(e.target.id==='dpick'&&e.target.value){dayStr=e.target.value;draw()}});
 document.addEventListener('click',async e=>{const t=e.target.closest('button');
  const cu=e.target.closest('[data-cu]');if(cu){selId=cu.dataset.cu;draw();return}
  if(!t)return;
  if(t.id==='in'){try{await signInWithPopup(auth,new GoogleAuthProvider())}catch(x){if(x.code==='auth/popup-blocked')signInWithRedirect(auth,new GoogleAuthProvider());else document.getElementById('e').textContent='Giriş yapılamadı: '+x.code}}
  else if(t.id==='out')signOut(auth)
+ else if(t.id==='dprev'||t.id==='dnext'){const d=new Date(dayStr+'T12:00:00');d.setDate(d.getDate()+(t.id==='dnext'?1:-1));dayStr=d.toLocaleDateString('sv-SE');draw()}
  else if(t.dataset.v){view=t.dataset.v;selId=null;draw()}
  else if(t.id==='back'){selId=null;draw()}
  else if(t.id==='addC'){const n=document.getElementById('nn').value.trim(),p=P(document.getElementById('np').value),k=parseFloat(String(document.getElementById('nk').value).replace(',','.'))||0;
   if(n.length<2||p.length!==10){alert('Ad soyad ve 10 haneli telefon gir.');return}
   if(byPhone(p)){alert('Bu telefon zaten kayıtlı.');return}
   const id='c'+Date.now().toString(36);await setDoc(doc(db,'customers',id),{id,name:n,phone:p,k,ledger:k>0?[{t:new Date().toISOString(),d:'Başlangıç kontörü',a:k}]:[]})}
+ else if(t.id==='vere'){const c=custs.find(x=>x.id===selId),a=parseFloat(String(document.getElementById('va').value).replace(',','.')),nt=document.getElementById('vn').value.trim();if(!c||!(a>0))return;
+  if(c.k-a<-(c.limit||0)&&!confirm('Bu işlem üyenin hakkını aşıyor ('+fk(c.k-a)+'). Yine de düşülsün mü?'))return;
+  await updateDoc(doc(db,'customers',c.id),{k:Math.round((c.k-a)*100)/100,ledger:(c.ledger||[]).concat([{t:new Date().toISOString(),d:'Veresiye'+(nt?' · '+nt:''),a:-a}]).slice(-100)})}
  else if(t.id==='setlim'){const c=custs.find(x=>x.id===selId),a=parseFloat(String(document.getElementById('li').value).replace(',','.'));if(!c||!(a>=0))return;await updateDoc(doc(db,'customers',c.id),{limit:a})}
  else if(t.id==='load'){const c=custs.find(x=>x.id===selId),a=parseFloat(String(document.getElementById('la').value).replace(',','.'));if(!c||!(a>0))return;
   await updateDoc(doc(db,'customers',c.id),{k:Math.round((c.k+a)*100)/100,ledger:(c.ledger||[]).concat([{t:new Date().toISOString(),d:'Kontör yükleme',a}]).slice(-100)})}
@@ -57,16 +64,25 @@ document.addEventListener('click',async e=>{const t=e.target.closest('button');
  }
 });
 function beep(){try{const c=new (window.AudioContext||window.webkitAudioContext)(),o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);o.frequency.value=880;g.gain.value=.2;o.start();setTimeout(()=>{o.stop();c.close()},350)}catch(_){}}
+function dayView(){
+ const os=docs.filter(d=>d.type==='order'&&new Date(d.ms).toLocaleDateString('sv-SE')===dayStr).sort((a,b)=>a.ms-b.ms);
+ const tot=os.reduce((s,o)=>s+o.total,0),paid=os.filter(o=>o.paid),pT=paid.reduce((s,o)=>s+o.total,0),kT=os.filter(o=>o.payType==='kontor').reduce((s,o)=>s+o.total,0),prod={};
+ os.forEach(o=>(o.items||[]).forEach(i=>{const r=prod[i.n]=prod[i.n]||{q:0,g:0};r.q+=i.q;r.g+=i.q*ip(i)}));const tq=Object.values(prod).reduce((s,r)=>s+r.q,0),tg=Object.values(prod).reduce((s,r)=>s+r.g,0);
+ let h=`<div class="tb"><div class="th"><button id="dprev" style="border:none;background:#efe2cd;border-radius:10px;padding:8px 14px;font-weight:700">‹</button><input id="dpick" type="date" value="${dayStr}" style="margin:0;flex:1;text-align:center"><button id="dnext" style="border:none;background:#efe2cd;border-radius:10px;padding:8px 14px;font-weight:700">›</button></div>
+ <div class="th" style="margin-top:10px"><span>Sipariş</span><b style="font-size:18px">${os.length}</b></div><div class="th"><span>Toplam ciro</span><b class="sum" style="font-size:18px">${TL(tot)}</b></div><div class="th"><span>Ödenen</span><b style="font-size:18px;color:var(--ok)">${TL(pT)}</b></div><div class="th"><span>Ödenmemiş</span><b style="font-size:18px;color:var(--red)">${TL(tot-pT)}</b></div><div class="th"><span>Kontörlü sipariş</span><b style="font-size:18px">${TL(kT)}</b></div></div>`;
+ if(Object.keys(prod).length)h+=`<div class="tb"><b>Satış – ürün bazında</b><div class="lg" style="color:var(--mut);font-size:12.5px"><span style="flex:1">Ürün</span><span style="width:60px;text-align:right">Adet</span><span style="width:90px;text-align:right">Gelir</span></div>`+Object.entries(prod).sort((a,b)=>b[1].g-a[1].g).map(([n,r])=>`<div class="lg"><span style="flex:1">${esc(n)}</span><b style="width:60px;text-align:right">${r.q}</b><b style="width:90px;text-align:right">${TL(r.g)}</b></div>`).join('')+`<div class="lg" style="border-bottom:none;font-size:16px"><b style="flex:1">TOPLAM</b><b style="width:60px;text-align:right">${tq}</b><b class="sum" style="width:90px;text-align:right">${TL(tg)}</b></div></div>`;
+ h+=os.length?os.slice().reverse().map(o=>`<div class="tb"><div class="th"><b style="font-size:18px">Masa ${esc(o.table)} · ${esc(o.no)}</b><span class="sum">${TL(o.total)}</span></div><small>${new Date(o.ms).toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'})}</small> <span class="tag ${o.paid?'g':'r'}">${o.paid?'Ödendi':'Ödenmedi'}</span>${o.payType==='kontor'?' <span class="tag y">Kontör '+esc(o.phone)+'</span>':''}`+(o.items||[]).map(i=>`<div>${i.q} × ${esc(i.n)}${i.note?' <small>('+esc(i.note)+')</small>':''}</div>`).join('')+`</div>`).join(''):'<div class="hint">Bu gün sipariş yok.</div>';
+ return h}
 function members(){
  if(selId){const c=custs.find(x=>x.id===selId);if(!c){selId=null;return members()}
   const lg=(c.ledger||[]).slice().reverse().slice(0,30);
-  return `<button id="back" style="border:none;background:none;color:var(--red);font-weight:700;padding:0 0 10px">‹ Üyeler</button><div class="tb"><div class="th"><b>${esc(c.name)}</b><span class="sum">${fk(c.k)}</span></div><small>${esc(c.phone)}</small><input id="la" inputmode="decimal" placeholder="Yüklenecek kontör (1 = 10 ₺)"><div class="ac"><button class="p" id="load">Kontör yükle</button></div><hr style="border:none;border-top:1px dashed var(--line);margin:14px 0"><b>Kontör hakkı (eksiye düşebilir): ${fk(c.limit||0)}</b><input id="li" inputmode="decimal" placeholder="Hak miktarı, 0 = yok"><div class="ac"><button class="d" id="setlim">Hakkı kaydet</button></div></div><div class="tb"><b>Hareketler</b>`+(lg.map(x=>`<div class="lg"><div>${esc(x.d)}<br><small>${new Date(x.t).toLocaleString('tr-TR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</small></div><div class="${x.a>0?'neg':'pos'}">${x.a>0?'+':'−'}${fk(Math.abs(x.a))}</div></div>`).join('')||'<div class="hint">Hareket yok.</div>')+`</div>`}
+  return `<button id="back" style="border:none;background:none;color:var(--red);font-weight:700;padding:0 0 10px">‹ Üyeler</button><div class="tb"><div class="th"><b>${esc(c.name)}</b><span class="sum">${fk(c.k)}</span></div><small>${esc(c.phone)}</small><input id="la" inputmode="decimal" placeholder="Yüklenecek kontör (1 = 10 ₺)"><div class="ac"><button class="p" id="load">Kontör yükle</button></div><hr style="border:none;border-top:1px dashed var(--line);margin:14px 0"><b>Veresiye kontör düş</b><input id="va" inputmode="decimal" placeholder="Düşülecek kontör"><input id="vn" placeholder="Not (isteğe bağlı)"><div class="ac"><button class="d" id="vere">Kontör düş</button></div><hr style="border:none;border-top:1px dashed var(--line);margin:14px 0"><b>Kontör hakkı (eksiye düşebilir): ${fk(c.limit||0)}</b><input id="li" inputmode="decimal" placeholder="Hak miktarı, 0 = yok"><div class="ac"><button class="d" id="setlim">Hakkı kaydet</button></div></div><div class="tb"><b>Hareketler</b>`+(lg.map(x=>`<div class="lg"><div>${esc(x.d)}<br><small>${new Date(x.t).toLocaleString('tr-TR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</small></div><div class="${x.a>0?'neg':'pos'}">${x.a>0?'+':'−'}${fk(Math.abs(x.a))}</div></div>`).join('')||'<div class="hint">Hareket yok.</div>')+`</div>`}
  return `<div class="tb"><b>Yeni üye</b><input id="nn" placeholder="Ad soyad"><input id="np" inputmode="tel" placeholder="Telefon 05xx xxx xx xx"><input id="nk" inputmode="decimal" placeholder="Başlangıç kontörü" value="10"><div class="ac"><button class="p" id="addC">Üye ekle</button></div></div>`+(custs.slice().sort((a,b)=>a.name.localeCompare(b.name,'tr')).map(c=>`<div class="tb cu" data-cu="${esc(c.id)}"><div><b style="font-size:17px">${esc(c.name)}</b><br><small>${esc(c.phone)}</small></div><span class="sum">${fk(c.k)}${c.limit?'<br><small>hak '+fk(c.limit)+'</small>':''}</span></div>`).join('')||'<div class="hint">Henüz üye yok.</div>')}
 function draw(){
- const keep=['nn','np','nk','la','li'].map(i=>{const e=document.getElementById(i);return e?[i,e.value]:null}).filter(Boolean);
+ const keep=['nn','np','nk','la','li','va','vn'].map(i=>{const e=document.getElementById(i);return e?[i,e.value]:null}).filter(Boolean);
  const orders=docs.filter(d=>d.type==='order'),pays=docs.filter(d=>d.type==='payment'),declared=new Set(pays.map(p=>p.no+'|'+p.table)),open=orders.filter(o=>!o.paid),byT={};
  open.forEach(o=>(byT[o.table]=byT[o.table]||[]).push(o));
- let h=`<div class="tabs"><button data-v="open" class="${view==='open'?'on':''}">Açık masalar (${Object.keys(byT).length})</button><button data-v="paid" class="${view==='paid'?'on':''}">Ödenenler</button><button data-v="mem" class="${view==='mem'?'on':''}">Üyeler</button></div>`;
+ let h=`<div class="tabs"><button data-v="open" class="${view==='open'?'on':''}">Açık masalar (${Object.keys(byT).length})</button><button data-v="paid" class="${view==='paid'?'on':''}">Ödenenler</button><button data-v="day" class="${view==='day'?'on':''}">Günlük</button><button data-v="mem" class="${view==='mem'?'on':''}">Üyeler</button></div>`;
  if(view==='open'){
   const ts=Object.keys(byT).sort((a,b)=>Math.min(...byT[a].map(o=>o.ms))-Math.min(...byT[b].map(o=>o.ms)));
   if(!ts.length)h+='<div class="hint">Açık sipariş yok.</div>';
@@ -79,7 +95,7 @@ function draw(){
   const ps=orders.filter(o=>o.paid).sort((a,b)=>b.ms-a.ms).slice(0,60);
   if(!ps.length)h+='<div class="hint">Henüz ödenen yok.</div>';
   ps.forEach(o=>{h+=`<div class="tb"><div class="th"><b>Masa ${esc(o.table)}</b><span class="sum">${TL(o.total)}</span></div><small>${esc(o.no)} · ${new Date(o.ms).toLocaleString('tr-TR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}${o.payType==='kontor'?' · kontör':''}</small>`+(o.items||[]).map(i=>`<div>${i.q} × ${esc(i.n)}</div>`).join('')+`</div>`})
- }else h+=members();
+ }else if(view==='day')h+=dayView();else h+=members();
  document.getElementById('w').innerHTML=h;
  keep.forEach(([i,v])=>{const e=document.getElementById(i);if(e)e.value=v});
 }
@@ -93,6 +109,6 @@ onAuthStateChanged(auth,u=>{
  unsubs.push(onSnapshot(query(collection(db,'orders'),orderBy('createdAt','desc')),s=>{
   docs=s.docs.map(d=>({id:d.id,...d.data(),ms:d.data().createdAt?d.data().createdAt.toMillis():Date.now()}));
   if(!first&&s.docChanges().some(c=>c.type==='added'&&c.doc.data().type==='order'))beep();first=false;draw()},er));
- unsubs.push(onSnapshot(collection(db,'customers'),s=>{custs=s.docs.map(d=>d.data());draw()},er));
+ unsubs.push(onSnapshot(collection(db,'customers'),s=>{custs=s.docs.map(d=>d.data());s.docChanges().forEach(ch=>{if(ch.type==='removed')return;const c=ch.doc.data(),l=(c.ledger||[]);setDoc(doc(db,'balances',c.phone),{k:c.k,limit:c.limit||0,son:l.length?l[l.length-1]:null}).catch(()=>{})});draw()},er));
 });
 </script></body></html>

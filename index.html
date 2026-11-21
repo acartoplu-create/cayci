@@ -41,9 +41,9 @@ input:focus{outline:none;border-color:var(--red)}
 <section class="screen on" id="s-menu"><header><h1>Çaycı</h1><small>Masadan sipariş ver · Ödemeyi sonda yap</small></header><div class="tabs" id="tabs"></div><div class="list" id="list"></div></section>
 <section class="screen" id="s-cart"><div class="pad"><button class="back" data-go="menu">‹ Menüye dön</button><h2>Sepetin</h2><div id="cartLines"></div>
 <label>Masa numarası</label><input id="table" inputmode="numeric" placeholder="Örn. 7" maxlength="3">
-<label>Ödeme</label><div class="seg" id="pts"><button data-pt="later" class="on">Sonda öderim</button><button data-pt="kontor">Kontörle (üye)</button></div><div id="phw" style="display:none"><label>Üye telefon numaran</label><input id="ph" inputmode="tel" placeholder="05xx xxx xx xx"></div><div id="sum"></div><div class="err" id="oerr"></div></div></section>
+<label>Ödeme</label><div class="seg" id="pts"><button data-pt="later" class="on">Sonda öderim</button><button data-pt="kontor">Kontörle (üye)</button></div><div id="phw" style="display:none"><label>Üye telefon numaran</label><input id="ph" inputmode="tel" placeholder="05xx xxx xx xx"><div id="bal" style="font-size:13.5px;margin-top:8px;font-weight:600"></div></div><div id="sum"></div><div class="err" id="oerr"></div></div></section>
 <section class="screen" id="s-ok"><div class="pad ok"><div class="c">✓</div><h2>Siparişin alındı</h2><p style="color:var(--mut)" id="okTxt"></p>
-<p style="font-size:34px;font-weight:800;margin:6px 0;color:var(--red)" id="okNo"></p><p style="color:var(--mut);font-size:14px">Hazırlanma süresi: 5–8 dk</p>
+<p style="font-size:34px;font-weight:800;margin:6px 0;color:var(--red)" id="okNo"></p><p style="color:var(--mut);font-size:14px">Hazırlanma süresi: 5–8 dk</p><div id="okBal" style="display:none;margin-top:10px;font-weight:600"></div><button class="btn plain" id="balBtn" style="display:none;margin-top:10px;background:var(--ink)">Kontör bakiyemi gör</button>
 <button class="btn plain" id="payNow" style="margin-top:20px;background:var(--ink)">▦ Şimdi QR ile öde</button>
 <p style="color:var(--mut);font-size:13px;margin:10px 0 0">İstersen ödemeyi sonra, çıkışta da yapabilirsin.</p>
 <button class="btn plain" style="margin-top:18px" id="again">Yeni sipariş</button></div></section>
@@ -56,7 +56,7 @@ input:focus{outline:none;border-color:var(--red)}
 <script type="module">
 import {firebaseConfig} from './common.js';
 import {initializeApp} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
-import {getFirestore,collection,addDoc,serverTimestamp} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import {getFirestore,collection,addDoc,serverTimestamp,doc,getDoc} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 const db=getFirestore(initializeApp(firebaseConfig));
 const TEA='<svg width="40" height="40" viewBox="0 0 48 48"><path d="M14 7h20c0 8-2 12-5 15-1.2 1.3-1.2 3 0 4.8 1.5 2.3 2 3.800 2 6.200H17c0-2.400.5-3.900 2-6.200 1.200-1.800 1.200-3.500 0-4.800-3-3-5-7-5-15z" fill="#fff" stroke="#8a5a3c" stroke-width="1.6"/><path d="M15.300 12h17.400c-.3 5-1.800 8-4.200 10.400-1.600 1.700-1.600 3.600-.3 5.600h-8.400c1.300-2 1.300-3.900-.3-5.600C17.100 20 15.600 17 15.300 12z" fill="#b5301f"/><ellipse cx="24" cy="40" rx="13" ry="2.600" fill="#d9a441"/></svg>';
 const CUP='<svg width="40" height="40" viewBox="0 0 48 48"><path d="M13 12h22l-3 29H16z" fill="#fff" stroke="#8a5a3c" stroke-width="1.6" stroke-linejoin="round"/><path d="M14.200 22h19.600l-1 9H15.200z" fill="#b5301f"/><rect x="11" y="8" width="26" height="5" rx="2" fill="#f1e3c8" stroke="#8a5a3c" stroke-width="1.6"/></svg>';
@@ -81,10 +81,12 @@ function tabs(){$('#tabs').innerHTML=MENU.map((m,i)=>`<button data-c="${i}" clas
 function list(){$('#list').innerHTML=MENU[cat].i.map(x=>`<div class="item"><div class="ico">${x.e}</div><div class="t"><b>${x.n}</b><span>${x.d}</span><span class="price">${TL(x.p)}</span>${isC(x.id)?'<div class="opt">'+['Sade','Az şekerli','Orta','Şekerli'].map(o=>`<button data-o="${x.id}|${o}" class="${(opts[x.id]||'Orta')===o?'on':''}">${o}</button>`).join('')+'</div>':''}</div>${qty(x.id)}</div>`).join('')}
 function cartV(){const L=lines();$('#cartLines').innerHTML=L.length?L.map(l=>`<div class="item" style="margin-bottom:10px"><div class="ico">${l.x.e}</div><div class="t"><b>${l.x.n}</b>${isC(l.x.id)?'<span>'+(opts[l.x.id]||'Orta')+'</span>':''}<span class="price">${TL(l.x.p*l.q)}</span></div>${qty(l.x.id)}</div>`).join(''):'<p style="color:var(--mut)">Sepet boş.</p>';$('#sum').innerHTML=`<div class="row tot"><span>Toplam</span><span>${TL(total())}</span></div>`}
 const phone=()=>($('#ph').value.replace(/\D/g,'')).slice(-10);
+async function showBal(el){const p=phone();if(p.length!==10){el.textContent='';return}el.style.color='var(--mut)';el.textContent='Bakiye bakılıyor…';
+ try{const d=await getDoc(doc(db,'balances',p));if(!d.exists()){el.style.color='var(--red)';el.textContent='Bu numara üye olarak kayıtlı değil.';return}const b=d.data(),ds=(b.son&&b.son.a)?' · Son hareket: '+(b.son.a>0?'+':'−')+Math.abs(b.son.a).toLocaleString('tr-TR')+' kontör':'';el.style.color=b.k<0?'var(--red)':'var(--ok)';el.textContent='Kontör bakiyen: '+(Math.round(b.k*100)/100).toLocaleString('tr-TR')+ds+(b.limit?' · Hakkın: '+b.limit+' kontör':'')}catch(e){el.style.color='var(--red)';el.textContent='Bakiye görüntülenemedi.'}}
 function bar(){const b=$('#bar');if(cur==='menu'){const n=count();b.innerHTML=n?`<button class="btn" data-go="cart"><span>Sepeti gör (${n})</span><span>${TL(total())}</span></button>`:''}else if(cur==='cart'){const ok=count()>0&&$('#table').value.trim()&&(pt!=='kontor'||phone().length===10);b.innerHTML=`<button class="btn" id="orderBtn" ${ok?'':'disabled'}><span>Siparişi ver</span><span>${TL(total())}</span></button>`}else b.innerHTML=''}
 function go(s){cur=s;document.querySelectorAll('.screen').forEach(e=>e.classList.remove('on'));$('#s-'+s).classList.add('on');if(s==='cart')cartV();if(s==='pay')payV();bar();scrollTo(0,0)}
 function payV(){const n=57,b=atob(QRB64);let p='';for(let y=0;y<n;y++){let run=-1;for(let x=0;x<=n;x++){let on=0;if(x<n){const i=y*n+x;on=(b.charCodeAt(i>>3)>>(7-(i&7)))&1}if(on&&run<0)run=x;if(!on&&run>=0){p+=`M${run} ${y}h${x-run}v1h-${x-run}z`;run=-1}}}$('#qrbox').innerHTML=`<svg viewBox="0 0 57 57" width="100%" height="100%" shape-rendering="crispEdges"><rect width="57" height="57" fill="#fff"/><path d="${p}"/></svg>`;$('#qamt').textContent=TL(last.total)}
-function mkItems(){return lines().map(l=>({n:l.x.n,q:l.q,note:isC(l.x.id)?(opts[l.x.id]||'Orta'):''}))}
+function mkItems(){return lines().map(l=>({n:l.x.n,q:l.q,p:l.x.p,note:isC(l.x.id)?(opts[l.x.id]||'Orta'):''}))}
 document.addEventListener('click',async e=>{const t=e.target.closest('button');if(!t)return;
  if(t.dataset.o){const[a,b]=t.dataset.o.split('|');opts[a]=b;list()}
  else if(t.dataset.c!==undefined){cat=+t.dataset.c;tabs();list()}
@@ -93,12 +95,13 @@ document.addEventListener('click',async e=>{const t=e.target.closest('button');i
  else if(t.dataset.pt){pt=t.dataset.pt;document.querySelectorAll('#pts button').forEach(b=>b.classList.toggle('on',b===t));$('#phw').style.display=pt==='kontor'?'block':'none';bar()}
  else if(t.dataset.go)go(t.dataset.go)
  else if(t.id==='orderBtn'){if(t.disabled)return;t.disabled=true;$('#oerr').textContent='';const no='#'+(100+Math.floor(Math.random()*900));const o={type:'order',no,table:$('#table').value.trim(),items:mkItems(),total:total(),paid:false,payType:pt,phone:pt==='kontor'?phone():'',status:'new',createdAt:serverTimestamp()};
-  try{await addDoc(collection(db,'orders'),o);last=o;$('#okNo').textContent=no;$('#okTxt').textContent='Masa '+o.table+' · '+TL(o.total)+(pt==='kontor'?' · Kontörden düşülecek':'');$('#payNow').style.display=pt==='kontor'?'none':'flex';go('ok')}catch(err){$('#oerr').textContent='Sipariş gönderilemedi. İnterneti kontrol edip tekrar dene.';t.disabled=false}}
+  try{await addDoc(collection(db,'orders'),o);last=o;$('#okNo').textContent=no;$('#okTxt').textContent='Masa '+o.table+' · '+TL(o.total)+(pt==='kontor'?' · Kontörden düşülecek':'');$('#payNow').style.display=pt==='kontor'?'none':'flex';$('#okBal').style.display=pt==='kontor'?'block':'none';$('#balBtn').style.display=pt==='kontor'?'flex':'none';if(pt==='kontor')showBal($('#okBal'));go('ok')}catch(err){$('#oerr').textContent='Sipariş gönderilemedi. İnterneti kontrol edip tekrar dene.';t.disabled=false}}
+ else if(t.id==='balBtn')showBal($('#okBal'))
  else if(t.id==='payNow')go('pay')
  else if(t.id==='paidBtn'){t.disabled=true;try{await addDoc(collection(db,'orders'),{type:'payment',no:last.no,table:last.table,total:last.total,method:'qr',createdAt:serverTimestamp()});go('paid')}catch(err){$('#perr').textContent='Gönderilemedi, tekrar dene.';t.disabled=false}}
  else if(t.id==='cpIban'){try{await navigator.clipboard.writeText('TR77 0013 4000 0115 2914 4000 02');t.textContent='Kopyalandı ✓'}catch(_){t.textContent='Kopyalanamadı'}}
  else if(t.id==='again'||t.id==='again2'){cart={};$('#table').value='';$('#ph').value='';pt='later';document.querySelectorAll('#pts button').forEach((b,i)=>b.classList.toggle('on',i===0));$('#phw').style.display='none';list();go('menu')}
 });
-$('#table').addEventListener('input',bar);$('#ph').addEventListener('input',bar);
+$('#table').addEventListener('input',bar);$('#ph').addEventListener('input',()=>{bar();if(phone().length===10)showBal($('#bal'));else $('#bal').textContent=''});
 tabs();list();bar();
 </script></body></html>
