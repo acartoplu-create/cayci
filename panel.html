@@ -17,14 +17,14 @@ header h1{margin:0;font-size:20px}button{font:inherit;cursor:pointer}
 input{width:100%;padding:12px;border-radius:12px;border:1.5px solid var(--line);font-size:16px;margin:4px 0 8px}
 .cu{cursor:pointer;display:flex;justify-content:space-between;align-items:center}.lg{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px dashed var(--line);font-size:14px}
 .pos{color:var(--red);font-weight:700}.neg{color:var(--ok);font-weight:700}
-.pl{background:#fff;border:1px solid var(--line);border-radius:18px;padding:12px;margin-bottom:14px}.pl .z{font-size:12px;font-weight:800;letter-spacing:.06em;margin:6px 0}.pl .g{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:8px}.pl .m{border:1.5px solid var(--line);background:#f4f4f2;border-radius:14px;padding:10px 4px;text-align:center;font-weight:800;font-size:18px;color:#999}.pl .m small{display:block;font-size:11px;font-weight:600}.pl .m.n{background:var(--red);border-color:var(--red);color:#fff}.pl .m.h{background:#f5b301;border-color:#f5b301;color:#222}.pl .m.k{background:#2e7d32;border-color:#2e7d32;color:#fff}</style></head><body>
+.pl{background:#fff;border:1px solid var(--line);border-radius:18px;padding:12px;margin-bottom:14px}.pl .z{font-size:12px;font-weight:800;letter-spacing:.06em;margin:6px 0}.pl .g{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:8px}.pl .m{border:1.5px solid var(--line);background:#f4f4f2;border-radius:14px;padding:10px 4px;text-align:center;font-weight:800;font-size:18px;color:#999}.pl .m small{display:block;font-size:11px;font-weight:600}.pl .m.n{background:var(--red);border-color:var(--red);color:#fff}.pl .m.h{background:#f5b301;border-color:#f5b301;color:#222}.pl .m.k{background:#2e7d32;border-color:#2e7d32;color:#fff}.pl .m{position:relative}.pl .ad{position:absolute;top:4px;right:4px;width:26px;height:26px;border-radius:99px;border:none;background:rgba(0,0,0,.15);color:inherit;font-size:18px;font-weight:800;line-height:1;padding:0}#ov{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:20;display:none}#ov .bx{position:absolute;inset:auto 0 0 0;max-height:88vh;overflow:auto;background:var(--bg);border-radius:20px 20px 0 0;padding:16px}#ov .r{display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--line)}#ov .r span{flex:1}#ov .r button{width:36px;height:36px;border-radius:99px;border:1px solid var(--line);background:#fff;font-size:20px;font-weight:700}#ov .r b{width:22px;text-align:center}#ov .go{width:100%;margin-top:12px;padding:14px;border:none;border-radius:14px;background:var(--red);color:#fff;font-weight:700;font-size:16px}#ov .go:disabled{opacity:.4}</style></head><body>
 <header><h1>Çaycı · Sipariş Paneli</h1><span id="who" style="font-size:12px;opacity:.9"></span></header>
 <div class="w" id="w"><div class="login"><p>Giriş yap</p><button id="in">Google ile giriş</button><div id="e" style="color:var(--red);margin-top:12px;font-size:13px"></div></div></div>
 <script type="module">
 import {firebaseConfig} from './common.js';
 import {initializeApp} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
 import {getAuth,GoogleAuthProvider,signInWithPopup,signInWithRedirect,onAuthStateChanged,signOut} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-import {getFirestore,collection,query,orderBy,onSnapshot,doc,updateDoc,deleteDoc,setDoc,runTransaction} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import {getFirestore,collection,query,orderBy,onSnapshot,doc,updateDoc,deleteDoc,setDoc,runTransaction,addDoc,serverTimestamp} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 const app=initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app);
 const TL=n=>(n||0).toLocaleString('tr-TR',{maximumFractionDigits:2})+' ₺',KR=10;
 const fk=n=>(Math.round(n*100)/100).toLocaleString('tr-TR')+' kontör';
@@ -35,7 +35,16 @@ const ip=i=>i.p!=null?i.p:(PRICE[i.n]||0);
 let dayStr=new Date().toLocaleDateString('sv-SE'),docs=[],custs=[],view='open',first=true,unsubs=[],selId=null;
 const byPhone=p=>custs.find(c=>c.phone===p);
 document.addEventListener('change',e=>{if(e.target.id==='dpick'&&e.target.value){dayStr=e.target.value;draw()}});
+let addT=null,addQ={};
+function ovDraw(){let ov=document.getElementById('ov');if(!ov){ov=document.createElement('div');ov.id='ov';document.body.appendChild(ov)}
+ if(!addT){ov.style.display='none';return}
+ const n=Object.values(addQ).reduce((s,q)=>s+q,0),tot=Object.entries(addQ).reduce((s,[k,q])=>s+q*PRICE[k],0);
+ ov.style.display='block';ov.innerHTML=`<div class="bx"><div class="th"><b>Masa ${esc(addT)} · sipariş ekle</b><button data-a="ovx|" style="border:none;background:none;font-size:26px">×</button></div>`+Object.keys(PRICE).map(k=>`<div class="r"><span>${esc(k)} <small>${TL(PRICE[k])}</small></span><button data-q="-|${esc(k)}">−</button><b>${addQ[k]||0}</b><button data-q="+|${esc(k)}">+</button></div>`).join('')+`<button class="go" data-a="ovgo|" ${n?'':'disabled'}>Siparişi ekle · ${TL(tot)}</button></div>`}
 document.addEventListener('click',async e=>{const t=e.target.closest('button');
+ if(t&&t.dataset.add){addT=t.dataset.add;addQ={};ovDraw();return}
+ if(t&&t.dataset.q){const [s,k]=t.dataset.q.split('|');addQ[k]=Math.max(0,(addQ[k]||0)+(s==='+'?1:-1));if(!addQ[k])delete addQ[k];ovDraw();return}
+ if(t&&t.dataset.a==='ovx|'){addT=null;ovDraw();return}
+ if(t&&t.dataset.a==='ovgo|'){t.disabled=true;const items=Object.entries(addQ).map(([n,q])=>({n,q,p:PRICE[n]}));const total=items.reduce((s,i)=>s+i.q*i.p,0);try{await addDoc(collection(db,'orders'),{type:'order',no:'#'+(100+Math.floor(Math.random()*900)),table:addT,items,total,paid:false,payType:'later',phone:'',status:'new',createdAt:serverTimestamp()});addT=null;ovDraw()}catch(x){alert('Eklenemedi: '+x.message);t.disabled=false}return}
  const cu=e.target.closest('[data-cu]');if(cu){selId=cu.dataset.cu;draw();return}
  if(!t)return;
  if(t.id==='in'){try{await signInWithPopup(auth,new GoogleAuthProvider())}catch(x){if(x.code==='auth/popup-blocked')signInWithRedirect(auth,new GoogleAuthProvider());else document.getElementById('e').textContent='Giriş yapılamadı: '+x.code}}
@@ -82,7 +91,7 @@ function draw(){
  const keep=['nn','np','nk','la','li','va','vn'].map(i=>{const e=document.getElementById(i);return e?[i,e.value]:null}).filter(Boolean);
  const orders=docs.filter(d=>d.type==='order'),pays=docs.filter(d=>d.type==='payment'),declared=new Set(pays.map(p=>p.no+'|'+p.table)),open=orders.filter(o=>!o.paid),byT={};
  open.forEach(o=>(byT[o.table]=byT[o.table]||[]).push(o));
-const planH=()=>{const st=t=>{const os=byT[t];if(!os)return['','boş'];const sum=os.reduce((s,o)=>s+o.total,0);return[os.some(o=>o.status==='new')?'n':'h',TL(sum)]};return '<div class="pl">'+[['BAHÇE','Bahçe ',9],['İÇERİSİ','İçeri ',6]].map(([z,pf,n])=>`<div class="z">${z}</div><div class="g">`+Array.from({length:n},(_,i)=>{const t=pf+(i+1),[c,l]=st(t);return `<div class="m ${c}" ${byT[t]?`onclick="document.getElementById('t-${i+1}-${pf.trim()}').scrollIntoView({behavior:'smooth',block:'center'})"`:''}>${i+1}<small>${l}</small></div>`}).join('')+'</div>').join('')+'</div>'};
+const planH=()=>{const st=t=>{const os=byT[t];if(!os)return['','boş'];const sum=os.reduce((s,o)=>s+o.total,0);return[os.some(o=>o.status==='new')?'n':'h',TL(sum)]};return '<div class="pl">'+[['BAHÇE','Bahçe ',9],['İÇERİSİ','İçeri ',6]].map(([z,pf,n])=>`<div class="z">${z}</div><div class="g">`+Array.from({length:n},(_,i)=>{const t=pf+(i+1),[c,l]=st(t);return `<div class="m ${c}" ${byT[t]?`onclick="document.getElementById('t-${i+1}-${pf.trim()}').scrollIntoView({behavior:'smooth',block:'center'})"`:''}>${i+1}<small>${l}</small><button data-add="${t}" class="ad">+</button></div>`}).join('')+'</div>').join('')+'</div>'};
  let h=`<div class="tabs"><button data-v="open" class="${view==='open'?'on':''}">Açık masalar (${Object.keys(byT).length})</button><button data-v="paid" class="${view==='paid'?'on':''}">Ödenenler</button><button data-v="day" class="${view==='day'?'on':''}">Günlük</button><button data-v="mem" class="${view==='mem'?'on':''}">Üyeler</button></div>`;
  if(view==='open'){
   h+=planH();
