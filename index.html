@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>Çaycı – Sipariş</title>
+<style>
+:root{--bg:#fbf5ea;--card:#fff;--ink:#2b1a12;--mut:#8a7565;--red:#a8281c;--gold:#d9a441;--line:#eadfce;--ok:#2e7d4f}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:#e9dfcd;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink);display:flex;justify-content:center}
+#app{width:100%;max-width:440px;min-height:100vh;background:var(--bg);position:relative;padding-bottom:calc(96px + env(safe-area-inset-bottom))}
+header{background:var(--red);color:#fff;padding:calc(18px + env(safe-area-inset-top)) 18px 22px;border-radius:0 0 26px 26px}
+header h1{margin:0;font-size:24px}header small{opacity:.85;display:block;font-size:12.5px;margin-top:2px}
+.tabs{display:flex;gap:8px;overflow-x:auto;padding:16px 18px 6px;scrollbar-width:none}
+.tabs button{flex:none;border:1px solid var(--line);background:#fff;color:var(--ink);padding:9px 16px;border-radius:99px;font-size:14px;font-weight:600}
+.tabs button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.list{padding:8px 18px;display:grid;gap:12px}
+.item{background:var(--card);border-radius:18px;padding:14px;display:flex;align-items:center;gap:14px;border:1px solid var(--line)}
+.ico{width:54px;height:54px;border-radius:16px;background:#f6e9d2;display:grid;place-items:center;font-size:28px;flex:none}
+.item .t{flex:1}.item b{display:block;font-size:16px}.item span{color:var(--mut);font-size:13px}
+.price{font-weight:700;margin-top:4px;display:block;color:var(--red)}
+.opt{display:flex;gap:4px;margin-top:8px;flex-wrap:wrap}.opt button{border:1px solid var(--line);background:#fff;border-radius:99px;padding:4px 9px;font-size:11.5px;font-weight:600;color:var(--ink)}.opt button.on{background:var(--gold);border-color:var(--gold)}
+.qty{display:flex;align-items:center;gap:10px}
+.qty button{width:34px;height:34px;border-radius:50%;border:none;background:var(--red);color:#fff;font-size:20px;line-height:1}
+.qty button.m{background:#efe2cd;color:var(--ink)}.qty em{min-width:16px;text-align:center;font-style:normal;font-weight:700}
+.bar{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:440px;padding:12px 18px calc(14px + env(safe-area-inset-bottom));background:linear-gradient(transparent,var(--bg) 30%)}
+.btn{width:100%;border:none;background:var(--red);color:#fff;padding:16px;border-radius:16px;font-size:16px;font-weight:700;display:flex;justify-content:space-between;align-items:center}
+.btn:disabled{background:#cbb9a3}.btn.plain{justify-content:center}
+.screen{display:none}.screen.on{display:block}.pad{padding:18px}
+h2{margin:6px 0 14px;font-size:20px}
+.row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px dashed var(--line);font-size:15px}
+.row.tot{border:none;font-weight:800;font-size:18px;padding-top:14px}
+.back{background:none;border:none;color:var(--red);font-weight:700;font-size:15px;padding:0 0 10px}
+label{display:block;font-size:13px;color:var(--mut);margin:12px 0 5px}
+input{width:100%;padding:14px;border-radius:14px;border:1.5px solid var(--line);font-size:16px;background:#fff;color:var(--ink)}
+input:focus{outline:none;border-color:var(--red)}
+.box{background:#fff;border:1px solid var(--line);border-radius:18px;padding:14px;margin-bottom:14px}
+.sm{padding:12px 16px;border:none;border-radius:12px;background:var(--red);color:#fff;font-weight:700;font-size:14px;margin-top:12px;width:100%}
+.qr{width:210px;height:210px;margin:10px auto;background:#fff;border:1px solid var(--line);border-radius:16px;padding:10px;display:grid;place-items:center}
+.ok{text-align:center;padding-top:40px}
+.ok .c{width:92px;height:92px;border-radius:50%;background:var(--ok);color:#fff;display:grid;place-items:center;font-size:48px;margin:0 auto 18px}
+.err{color:var(--red);font-size:13px;margin-top:8px;min-height:18px}
+</style></head><body><div id="app">
+<section class="screen on" id="s-menu"><header><h1>Çaycı</h1><small>Masadan sipariş ver · Ödemeyi sonda yap</small></header><div class="tabs" id="tabs"></div><div class="list" id="list"></div></section>
+<section class="screen" id="s-cart"><div class="pad"><button class="back" data-go="menu">‹ Menüye dön</button><h2>Sepetin</h2><div id="cartLines"></div>
+<label>Masa numarası</label><input id="table" inputmode="numeric" placeholder="Örn. 7" maxlength="3">
+<div id="sum"></div><div class="err" id="oerr"></div></div></section>
+<section class="screen" id="s-ok"><div class="pad ok"><div class="c">✓</div><h2>Siparişin alındı</h2><p style="color:var(--mut)" id="okTxt"></p>
+<p style="font-size:34px;font-weight:800;margin:6px 0;color:var(--red)" id="okNo"></p><p style="color:var(--mut);font-size:14px">Hazırlanma süresi: 5–8 dk</p>
+<button class="btn plain" id="payNow" style="margin-top:20px;background:var(--ink)">▦ Şimdi QR ile öde</button>
+<p style="color:var(--mut);font-size:13px;margin:10px 0 0">İstersen ödemeyi sonra, çıkışta da yapabilirsin.</p>
+<button class="btn plain" style="margin-top:18px" id="again">Yeni sipariş</button></div></section>
+<section class="screen" id="s-pay"><div class="pad" style="text-align:center"><button class="back" data-go="ok" style="display:block;text-align:left">‹ Geri</button><h2>QR ile öde</h2>
+<div class="qr" id="qrbox"></div><p style="color:var(--mut);font-size:14px;margin:0">Masandaki DenizBank QR’ını banka uygulamanla okut ve tutarı öde.</p>
+<div class="box" style="text-align:left;margin-top:14px"><div class="row" style="padding-top:0"><span>Ödenecek tutar</span><b id="qamt" style="font-size:18px;color:var(--red)"></b></div><div class="row"><span>Hesap sahibi</span><b>Hakan Karakaş</b></div><div style="padding-top:10px;font-size:13px;color:var(--mut)">IBAN</div><div style="font-weight:700;font-size:14.5px;word-break:break-all">TR77 0013 4000 0115 2914 4000 02</div><button class="sm" id="cpIban">IBAN’ı kopyala</button></div>
+<button class="btn plain" id="paidBtn" style="margin-top:6px">Ödedim</button><div class="err" id="perr"></div></div></section>
+<section class="screen" id="s-paid"><div class="pad ok"><div class="c">✓</div><h2>Teşekkürler!</h2><p style="color:var(--mut)">Ödemen bildirildi. Afiyet olsun.</p><button class="btn plain" style="margin-top:24px" id="again2">Yeni sipariş</button></div></section>
+<div class="bar" id="bar"></div></div>
+<script type="module">
+import {firebaseConfig} from './common.js';
+import {initializeApp} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+import {getFirestore,collection,addDoc,serverTimestamp} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+const db=getFirestore(initializeApp(firebaseConfig));
+const TEA='<svg width="40" height="40" viewBox="0 0 48 48"><path d="M14 7h20c0 8-2 12-5 15-1.2 1.3-1.2 3 0 4.8 1.5 2.3 2 3.800 2 6.200H17c0-2.400.5-3.900 2-6.200 1.200-1.800 1.200-3.500 0-4.800-3-3-5-7-5-15z" fill="#fff" stroke="#8a5a3c" stroke-width="1.6"/><path d="M15.300 12h17.400c-.3 5-1.800 8-4.200 10.400-1.600 1.700-1.600 3.600-.3 5.600h-8.400c1.300-2 1.300-3.900-.3-5.600C17.100 20 15.600 17 15.300 12z" fill="#b5301f"/><ellipse cx="24" cy="40" rx="13" ry="2.600" fill="#d9a441"/></svg>';
+const CUP='<svg width="40" height="40" viewBox="0 0 48 48"><path d="M13 12h22l-3 29H16z" fill="#fff" stroke="#8a5a3c" stroke-width="1.6" stroke-linejoin="round"/><path d="M14.200 22h19.600l-1 9H15.200z" fill="#b5301f"/><rect x="11" y="8" width="26" height="5" rx="2" fill="#f1e3c8" stroke="#8a5a3c" stroke-width="1.6"/></svg>';
+const BOT='<svg width="40" height="40" viewBox="0 0 48 48"><path d="M20 6h8v6c0 2 5 4 5 9v21a3 3 0 0 1-3 3H18a3 3 0 0 1-3-3V21c0-5 5-7 5-9z" fill="#4c9a4f" stroke="#2f6b32" stroke-width="1.6" stroke-linejoin="round"/><rect x="19" y="3" width="10" height="4" rx="1" fill="#c9a227"/><rect x="15.800" y="26" width="16.400" height="11" fill="#fff" opacity=".92"/>';
+const MAD=BOT+'<path d="M18.500 31c1.500-2 3-2 4.500 0s3 2 4.500 0" fill="none" stroke="#2f78c4" stroke-width="1.600" stroke-linecap="round"/><path d="M18.500 34.500c1.500-2 3-2 4.500 0s3 2 4.500 0" fill="none" stroke="#2f78c4" stroke-width="1.600" stroke-linecap="round"/></svg>';
+const LIM=BOT+'<circle cx="24" cy="31.500" r="4.200" fill="#f6d33a" stroke="#d9a400"/><path d="M24 27.300v8.400M19.800 31.500h8.400" stroke="#d9a400" stroke-width=".8"/></svg>';
+const MENU=[
+{c:'Çaylar',i:[{id:1,n:'İnce Belli Bardak Çay',d:'Rize çayı, klasik bardakta',p:10,e:TEA},{id:2,n:'Karton Bardak Çay',d:'Yanında götürmek için',p:20,e:CUP}]},
+{c:'Kahveler',i:[{id:16,n:'Türk Kahvesi',d:'Közde pişer, lokumla servis edilir',p:60,e:'☕'},{id:18,n:'Nescafe',d:'Sıcak, sütlü ya da sade',p:30,e:'☕'}]},
+{c:'Sıcak İçecekler',i:[{id:20,n:'Sahlep',d:'Tarçınlı, sıcak servis',p:30,e:'🥛'}]},
+{c:'Bitki Çayları',i:[{id:5,n:'Ihlamur',d:'Bal ile',p:40,e:'🌼'},{id:6,n:'Adaçayı',d:'Limon dilimiyle',p:40,e:'🌿'},{id:7,n:'Kış Çayı',d:'Tarçın, karanfil, elma',p:45,e:'🍎'},{id:8,n:'Nane Limon',d:'Taze nane',p:40,e:'🍋'}]},
+{c:'Soğuk İçecekler',i:[{id:21,n:'Su',d:'0,5 lt',p:20,e:'💧'},{id:22,n:'Maden Suyu',d:'Cam şişe',p:30,e:MAD},{id:27,n:'Limonlu Maden Suyu',d:'Cam şişe',p:35,e:LIM},{id:23,n:'Ayran',d:'Sütaş, 175 ml',p:25,e:'🥛'},{id:24,n:'Limonata',d:'Soğuk, bardakta',p:20,e:'🍋'},{id:25,n:'Avşar Meyve Suyu',d:'Cam şişe',p:40,e:'🍇'},{id:26,n:'Karışık Meyve Nektarı',d:'Meyöz, 200 ml',p:25,e:'🧃'}]},
+{c:'Atıştırmalık',i:[{id:9,n:'Simit',d:'Çıtır, sıcak',p:25,e:'🥯'},{id:10,n:'Kaşarlı Tost',d:'Ayvalık ekmeği',p:70,e:'🥪'},{id:11,n:'Poğaça',d:'Peynirli',p:30,e:'🥐'}]}];
+const QRB64='AAAAAAAAAAAAAAAAAAAP5NzXtV4/hBL1ISFBkELqdR27IkuhdeOwFiZV0Lqn9frAYuhBQvBGG7EEP6qqqqqq/gAUPvFqlgAL4PXfoNI+AkxRH3qJrEF6zfRIuUpBYcWhq6FKEN4RJXBpH+AWzd3m7JIMKspdxIuW4AUKjJL6FhAPt2AXAJPehksovJqJBYANuJQQfUOAgXkDByIPgNvMZOhOW5A0XjAhrnAEEcXd7QoNfBEGLdj7FOkH/JWfppX5BcUC5FrNxkMqA1KwuytBESjBFClRMK/NDf+NH/giREGLZF5kNZPXJuvQDBkftHh6FVIKJsWQZJZXAkGILpZJpMNZxSo4vTEBqZoRp2FlAGJSqBZpKOBU+lr7lB/IGbhwk7PTMAqWMsp6lnoNcbkh5NbBh6tVq5pKNUN5c6JSoLDAwYMyR5hmgBIdnPpxr8AAcQ1F4BRIP49ZKw2SoBBT5jHqlRELq11f5vb/BdU7ALoB6MLrGE2QvUNhBKsSq6FwIP6kE6hpAOAAAAAAAAAAAAAAAAAAAAA=';
+const $=s=>document.querySelector(s),TL=n=>n.toLocaleString('tr-TR',{maximumFractionDigits:2})+' ₺';
+let cat=0,cart={},opts={},cur='menu',last=null;
+const all=()=>MENU.flatMap(m=>m.i),lines=()=>all().filter(x=>cart[x.id]).map(x=>({x,q:cart[x.id]}));
+const total=()=>lines().reduce((s,l)=>s+l.x.p*l.q,0),count=()=>lines().reduce((s,l)=>s+l.q,0);
+const isC=id=>id===16||id===18;
+const qty=id=>cart[id]?`<div class="qty"><button class="m" data-m="${id}">−</button><em>${cart[id]}</em><button data-p="${id}">+</button></div>`:`<div class="qty"><button data-p="${id}">+</button></div>`;
+function tabs(){$('#tabs').innerHTML=MENU.map((m,i)=>`<button data-c="${i}" class="${i===cat?'on':''}">${m.c}</button>`).join('')}
+function list(){$('#list').innerHTML=MENU[cat].i.map(x=>`<div class="item"><div class="ico">${x.e}</div><div class="t"><b>${x.n}</b><span>${x.d}</span><span class="price">${TL(x.p)}</span>${isC(x.id)?'<div class="opt">'+['Sade','Az şekerli','Orta','Şekerli'].map(o=>`<button data-o="${x.id}|${o}" class="${(opts[x.id]||'Orta')===o?'on':''}">${o}</button>`).join('')+'</div>':''}</div>${qty(x.id)}</div>`).join('')}
+function cartV(){const L=lines();$('#cartLines').innerHTML=L.length?L.map(l=>`<div class="item" style="margin-bottom:10px"><div class="ico">${l.x.e}</div><div class="t"><b>${l.x.n}</b>${isC(l.x.id)?'<span>'+(opts[l.x.id]||'Orta')+'</span>':''}<span class="price">${TL(l.x.p*l.q)}</span></div>${qty(l.x.id)}</div>`).join(''):'<p style="color:var(--mut)">Sepet boş.</p>';$('#sum').innerHTML=`<div class="row tot"><span>Toplam</span><span>${TL(total())}</span></div>`}
+function bar(){const b=$('#bar');if(cur==='menu'){const n=count();b.innerHTML=n?`<button class="btn" data-go="cart"><span>Sepeti gör (${n})</span><span>${TL(total())}</span></button>`:''}else if(cur==='cart'){const ok=count()>0&&$('#table').value.trim();b.innerHTML=`<button class="btn" id="orderBtn" ${ok?'':'disabled'}><span>Siparişi ver</span><span>${TL(total())}</span></button>`}else b.innerHTML=''}
+function go(s){cur=s;document.querySelectorAll('.screen').forEach(e=>e.classList.remove('on'));$('#s-'+s).classList.add('on');if(s==='cart')cartV();if(s==='pay')payV();bar();scrollTo(0,0)}
+function payV(){const n=57,b=atob(QRB64);let p='';for(let y=0;y<n;y++){let run=-1;for(let x=0;x<=n;x++){let on=0;if(x<n){const i=y*n+x;on=(b.charCodeAt(i>>3)>>(7-(i&7)))&1}if(on&&run<0)run=x;if(!on&&run>=0){p+=`M${run} ${y}h${x-run}v1h-${x-run}z`;run=-1}}}$('#qrbox').innerHTML=`<svg viewBox="0 0 57 57" width="100%" height="100%" shape-rendering="crispEdges"><rect width="57" height="57" fill="#fff"/><path d="${p}"/></svg>`;$('#qamt').textContent=TL(last.total)}
+function mkItems(){return lines().map(l=>({n:l.x.n,q:l.q,note:isC(l.x.id)?(opts[l.x.id]||'Orta'):''}))}
+document.addEventListener('click',async e=>{const t=e.target.closest('button');if(!t)return;
+ if(t.dataset.o){const[a,b]=t.dataset.o.split('|');opts[a]=b;list()}
+ else if(t.dataset.c!==undefined){cat=+t.dataset.c;tabs();list()}
+ else if(t.dataset.p){cart[t.dataset.p]=(cart[t.dataset.p]||0)+1;list();if(cur==='cart')cartV();bar()}
+ else if(t.dataset.m){const id=t.dataset.m;cart[id]--;if(!cart[id])delete cart[id];list();if(cur==='cart')cartV();bar()}
+ else if(t.dataset.go)go(t.dataset.go)
+ else if(t.id==='orderBtn'){if(t.disabled)return;t.disabled=true;$('#oerr').textContent='';const no='#'+(100+Math.floor(Math.random()*900));const o={type:'order',no,table:$('#table').value.trim(),items:mkItems(),total:total(),paid:false,status:'new',createdAt:serverTimestamp()};
+  try{await addDoc(collection(db,'orders'),o);last=o;$('#okNo').textContent=no;$('#okTxt').textContent='Masa '+o.table+' · '+TL(o.total);go('ok')}catch(err){$('#oerr').textContent='Sipariş gönderilemedi. İnterneti kontrol edip tekrar dene.';t.disabled=false}}
+ else if(t.id==='payNow')go('pay')
+ else if(t.id==='paidBtn'){t.disabled=true;try{await addDoc(collection(db,'orders'),{type:'payment',no:last.no,table:last.table,total:last.total,method:'qr',createdAt:serverTimestamp()});go('paid')}catch(err){$('#perr').textContent='Gönderilemedi, tekrar dene.';t.disabled=false}}
+ else if(t.id==='cpIban'){try{await navigator.clipboard.writeText('TR77 0013 4000 0115 2914 4000 02');t.textContent='Kopyalandı ✓'}catch(_){t.textContent='Kopyalanamadı'}}
+ else if(t.id==='again'||t.id==='again2'){cart={};$('#table').value='';list();go('menu')}
+});
+$('#table').addEventListener('input',bar);
+tabs();list();bar();
+</script></body></html>

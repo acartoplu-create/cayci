@@ -1,0 +1,1 @@
+export const firebaseConfig={"apiKey":"AIzaSyAca4xlQPnXmcEfgyfn3F8Ei3abAjAA1Zs","authDomain":"cayci-siparis.firebaseapp.com","projectId":"cayci-siparis","storageBucket":"cayci-siparis.firebasestorage.app","messagingSenderId":"460294682339","appId":"1:460294682339:web:33fe4f4e9727b95432f7d6"};

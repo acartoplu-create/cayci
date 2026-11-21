@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Çaycı – Sipariş Paneli</title>
+<style>
+:root{--bg:#fbf5ea;--ink:#2b1a12;--mut:#8a7565;--red:#a8281c;--line:#eadfce;--ok:#2e7d4f;--gold:#d9a441}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink)}
+header{background:var(--red);color:#fff;padding:16px 18px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:5}
+header h1{margin:0;font-size:20px}button{font:inherit;cursor:pointer}
+.w{max-width:720px;margin:0 auto;padding:14px}
+.login{text-align:center;padding:60px 20px}.login button{background:var(--red);color:#fff;border:none;border-radius:14px;padding:14px 22px;font-weight:700;font-size:16px}
+.tb{background:#fff;border:1px solid var(--line);border-radius:18px;padding:14px;margin-bottom:14px}
+.tb.new{border:2px solid var(--red)}
+.th{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}.th b{font-size:22px}
+.tag{font-size:12px;font-weight:700;padding:3px 9px;border-radius:99px;background:#efe2cd}.tag.g{background:#d8f0e0;color:var(--ok)}.tag.r{background:#fde0dc;color:var(--red)}.tag.y{background:#fff1cc;color:#8a6200}
+.o{border-top:1px dashed var(--line);padding:10px 0}.o small{color:var(--mut)}
+.it{font-size:17px;font-weight:600;margin:2px 0}
+.ac{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}.ac button{border:none;border-radius:10px;padding:9px 14px;font-weight:700;background:#efe2cd;color:var(--ink)}.ac button.p{background:var(--ok);color:#fff}.ac button.d{background:var(--ink);color:#fff}
+.sum{font-weight:800;color:var(--red)}
+.hint{color:var(--mut);text-align:center;padding:30px}
+.tabs{display:flex;gap:8px;margin-bottom:12px}.tabs button{border:1px solid var(--line);background:#fff;border-radius:99px;padding:8px 16px;font-weight:700}.tabs button.on{background:var(--ink);color:#fff}
+</style></head><body>
+<header><h1>Çaycı · Sipariş Paneli</h1><span id="who" style="font-size:12px;opacity:.9"></span></header>
+<div class="w" id="w"><div class="login"><p>Giriş yap</p><button id="in">Google ile giriş</button><div id="e" style="color:var(--red);margin-top:12px;font-size:13px"></div></div></div>
+<script type="module">
+import {firebaseConfig} from './common.js';
+import {initializeApp} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+import {getAuth,GoogleAuthProvider,signInWithPopup,onAuthStateChanged,signOut} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+import {getFirestore,collection,query,orderBy,onSnapshot,doc,updateDoc,deleteDoc} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+const app=initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app);
+const TL=n=>(n||0).toLocaleString('tr-TR',{maximumFractionDigits:2})+' ₺';
+let docs=[],view='open',first=true,unsub=null;
+document.addEventListener('click',async e=>{const t=e.target.closest('button');if(!t)return;
+ if(t.id==='in'){try{await signInWithPopup(auth,new GoogleAuthProvider())}catch(x){document.getElementById('e').textContent='Giriş yapılamadı: '+x.code}}
+ else if(t.id==='out')signOut(auth)
+ else if(t.dataset.v){view=t.dataset.v;draw()}
+ else if(t.dataset.a){const [a,id]=t.dataset.a.split('|');if(a==='done')await updateDoc(doc(db,'orders',id),{status:'done'});if(a==='paid')await updateDoc(doc(db,'orders',id),{paid:true});if(a==='del'&&confirm('Silinsin mi?'))await deleteDoc(doc(db,'orders',id));
+  if(a==='tablepaid'){for(const d of docs.filter(d=>d.type==='order'&&d.table===id&&!d.paid))await updateDoc(doc(db,'orders',d.id),{paid:true,status:'done'})}}
+});
+function beep(){try{const c=new (window.AudioContext||window.webkitAudioContext)(),o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);o.frequency.value=880;g.gain.value=.2;o.start();setTimeout(()=>{o.stop();c.close()},350)}catch(_){}}
+function draw(){
+ const orders=docs.filter(d=>d.type==='order'),pays=docs.filter(d=>d.type==='payment');
+ const declared=new Set(pays.map(p=>p.no+'|'+p.table));
+ const open=orders.filter(o=>!o.paid);
+ const byT={};open.forEach(o=>(byT[o.table]=byT[o.table]||[]).push(o));
+ let h=`<div class="tabs"><button data-v="open" class="${view==='open'?'on':''}">Açık masalar (${Object.keys(byT).length})</button><button data-v="paid" class="${view==='paid'?'on':''}">Ödenenler</button></div>`;
+ if(view==='open'){
+  const ts=Object.keys(byT).sort((a,b)=>Math.min(...byT[a].map(o=>o.ms))-Math.min(...byT[b].map(o=>o.ms)));
+  if(!ts.length)h+='<div class="hint">Açık sipariş yok.</div>';
+  ts.forEach(t=>{const os=byT[t].sort((a,b)=>a.ms-b.ms),sum=os.reduce((s,o)=>s+o.total,0),isNew=os.some(o=>o.status==='new'),dec=os.some(o=>declared.has(o.no+'|'+o.table));
+   h+=`<div class="tb ${isNew?'new':''}"><div class="th"><b>Masa ${t}</b><span class="sum">${TL(sum)}</span></div>${dec?'<span class="tag y">Müşteri ödedi dedi (QR) – hesabı kontrol et</span>':''}`;
+   os.forEach(o=>{h+=`<div class="o"><small>${o.no} · ${new Date(o.ms).toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'})}</small> <span class="tag ${o.status==='new'?'r':'g'}">${o.status==='new'?'Yeni':'Hazırlandı'}</span>`+(o.items||[]).map(i=>`<div class="it">${i.q} × ${i.n}${i.note?' <small>('+i.note+')</small>':''}</div>`).join('')+`<div class="ac">${o.status==='new'?`<button class="d" data-a="done|${o.id}">Hazırlandı</button>`:''}<button data-a="del|${o.id}">Sil</button></div></div>`});
+   h+=`<div class="ac"><button class="p" data-a="tablepaid|${t}">Masa ${t} ödendi · ${TL(sum)}</button></div></div>`});
+ }else{
+  const ps=orders.filter(o=>o.paid).sort((a,b)=>b.ms-a.ms).slice(0,60);
+  if(!ps.length)h+='<div class="hint">Henüz ödenen yok.</div>';
+  ps.forEach(o=>{h+=`<div class="tb"><div class="th"><b>Masa ${o.table}</b><span class="sum">${TL(o.total)}</span></div><small>${o.no} · ${new Date(o.ms).toLocaleString('tr-TR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</small>`+(o.items||[]).map(i=>`<div>${i.q} × ${i.n}</div>`).join('')+`</div>`});
+ }
+ document.getElementById('w').innerHTML=h;
+}
+onAuthStateChanged(auth,u=>{
+ if(unsub){unsub();unsub=null}
+ if(!u){document.getElementById('who').innerHTML='';return}
+ document.getElementById('who').innerHTML=u.email+' <button id="out" style="background:none;border:1px solid #fff8;color:#fff;border-radius:8px;padding:3px 8px">Çıkış</button>';
+ document.getElementById('w').innerHTML='<div class="hint">Yükleniyor…</div>';first=true;
+ unsub=onSnapshot(query(collection(db,'orders'),orderBy('createdAt','desc')),s=>{
+  docs=s.docs.map(d=>({id:d.id,...d.data(),ms:d.data().createdAt?d.data().createdAt.toMillis():Date.now()}));
+  if(!first&&s.docChanges().some(c=>c.type==='added'&&c.doc.data().type==='order'))beep();first=false;draw()
+ },err=>{document.getElementById('w').innerHTML='<div class="hint">Erişim yok: '+err.code+'<br>Doğru Google hesabıyla giriş yap.</div>'})
+});
+</script></body></html>
