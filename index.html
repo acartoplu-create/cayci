@@ -37,10 +37,10 @@ input:focus{outline:none;border-color:var(--red)}
 .ok .c{width:92px;height:92px;border-radius:50%;background:var(--ok);color:#fff;display:grid;place-items:center;font-size:48px;margin:0 auto 18px}
 .seg{display:grid;grid-template-columns:1fr 1fr;gap:8px}.seg button{padding:12px 6px;border-radius:14px;border:1.5px solid var(--line);background:#fff;font-weight:700;font-size:13.5px;color:var(--ink)}.seg button.on{border-color:var(--red);background:#fdeceb;color:var(--red)}
 .err{color:var(--red);font-size:13px;margin-top:8px;min-height:18px}
-</style></head><body><div id="app">
+#tp .z{font-size:12px;font-weight:800;letter-spacing:.06em;margin:10px 0 6px}#tp .g{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}#tp .g button{padding:13px 0;border-radius:14px;border:1.5px solid var(--line);background:#fff;font-size:16px;font-weight:700;color:var(--ink)}#tp .g button.on{background:var(--red);border-color:var(--red);color:#fff}</style></head><body><div id="app">
 <section class="screen on" id="s-menu"><header><h1>Çaycı</h1><small>Masadan sipariş ver · Ödemeyi sonda yap</small></header><div class="tabs" id="tabs"></div><div class="list" id="list"></div></section>
 <section class="screen" id="s-cart"><div class="pad"><button class="back" data-go="menu">‹ Menüye dön</button><h2>Sepetin</h2><div id="cartLines"></div>
-<label>Masa numarası</label><input id="table" inputmode="numeric" placeholder="Örn. 7" maxlength="3">
+<label>Masan</label><input id="table" type="hidden"><div id="tp"></div>
 <label>Ödeme</label><div class="seg" id="pts"><button data-pt="later" class="on">Sonda öderim</button><button data-pt="kontor">Kontörle (üye)</button></div><div id="phw" style="display:none"><label>Üye telefon numaran</label><input id="ph" inputmode="tel" placeholder="05xx xxx xx xx"><div id="bal" style="font-size:13.5px;margin-top:8px;font-weight:600"></div></div><div id="sum"></div><div class="err" id="oerr"></div></div></section>
 <section class="screen" id="s-ok"><div class="pad ok"><div class="c">✓</div><h2>Siparişin alındı</h2><p style="color:var(--mut)" id="okTxt"></p>
 <p style="font-size:34px;font-weight:800;margin:6px 0;color:var(--red)" id="okNo"></p><p style="color:var(--mut);font-size:14px">Hazırlanma süresi: 5–8 dk</p><div id="okBal" style="display:none;margin-top:10px;font-weight:600"></div><button class="btn plain" id="balBtn" style="display:none;margin-top:10px;background:var(--ink)">Kontör bakiyemi gör</button>
@@ -83,6 +83,8 @@ function cartV(){const L=lines();$('#cartLines').innerHTML=L.length?L.map(l=>`<d
 const phone=()=>($('#ph').value.replace(/\D/g,'')).slice(-10);
 async function showBal(el){const p=phone();if(p.length!==10){el.textContent='';return}el.style.color='var(--mut)';el.textContent='Bakiye bakılıyor…';
  try{const d=await getDoc(doc(db,'balances',p));if(!d.exists()){el.style.color='var(--red)';el.textContent='Bu numara üye olarak kayıtlı değil.';return}const b=d.data(),ds=(b.son&&b.son.a)?' · Son hareket: '+(b.son.a>0?'+':'−')+Math.abs(b.son.a).toLocaleString('tr-TR')+' kontör':'';el.style.color=b.k<0?'var(--red)':'var(--ok)';el.textContent='Kontör bakiyen: '+(Math.round(b.k*100)/100).toLocaleString('tr-TR')+ds+(b.limit?' · Hakkın: '+b.limit+' kontör':'')}catch(e){el.style.color='var(--red)';el.textContent='Bakiye görüntülenemedi.'}}
+const ZON=[['Bahçe',9],['İçerisi',6]];function tpick(){const v=$('#table').value;$('#tp').innerHTML=ZON.map(([z,n])=>`<div class="z">${z.toUpperCase()}</div><div class="g">`+Array.from({length:n},(_,i)=>{const id=(z==='Bahçe'?'Bahçe ':'İçeri ')+(i+1);return `<button data-tb="${id}" class="${v===id?'on':''}">${i+1}</button>`}).join('')+'</div>').join('')}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-tb]');if(b){$('#table').value=b.dataset.tb;tpick();bar()}});
 function bar(){const b=$('#bar');if(cur==='menu'){const n=count();b.innerHTML=n?`<button class="btn" data-go="cart"><span>Sepeti gör (${n})</span><span>${TL(total())}</span></button>`:''}else if(cur==='cart'){const ok=count()>0&&$('#table').value.trim()&&(pt!=='kontor'||phone().length===10);b.innerHTML=`<button class="btn" id="orderBtn" ${ok?'':'disabled'}><span>Siparişi ver</span><span>${TL(total())}</span></button>`}else b.innerHTML=''}
 function go(s){cur=s;document.querySelectorAll('.screen').forEach(e=>e.classList.remove('on'));$('#s-'+s).classList.add('on');if(s==='cart')cartV();if(s==='pay')payV();bar();scrollTo(0,0)}
 function payV(){const n=57,b=atob(QRB64);let p='';for(let y=0;y<n;y++){let run=-1;for(let x=0;x<=n;x++){let on=0;if(x<n){const i=y*n+x;on=(b.charCodeAt(i>>3)>>(7-(i&7)))&1}if(on&&run<0)run=x;if(!on&&run>=0){p+=`M${run} ${y}h${x-run}v1h-${x-run}z`;run=-1}}}$('#qrbox').innerHTML=`<svg viewBox="0 0 57 57" width="100%" height="100%" shape-rendering="crispEdges"><rect width="57" height="57" fill="#fff"/><path d="${p}"/></svg>`;$('#qamt').textContent=TL(last.total)}
@@ -100,8 +102,8 @@ document.addEventListener('click',async e=>{const t=e.target.closest('button');i
  else if(t.id==='payNow')go('pay')
  else if(t.id==='paidBtn'){t.disabled=true;try{await addDoc(collection(db,'orders'),{type:'payment',no:last.no,table:last.table,total:last.total,method:'qr',createdAt:serverTimestamp()});go('paid')}catch(err){$('#perr').textContent='Gönderilemedi, tekrar dene.';t.disabled=false}}
  else if(t.id==='cpIban'){try{await navigator.clipboard.writeText('TR77 0013 4000 0115 2914 4000 02');t.textContent='Kopyalandı ✓'}catch(_){t.textContent='Kopyalanamadı'}}
- else if(t.id==='again'||t.id==='again2'){cart={};$('#table').value='';$('#ph').value='';pt='later';document.querySelectorAll('#pts button').forEach((b,i)=>b.classList.toggle('on',i===0));$('#phw').style.display='none';list();go('menu')}
+ else if(t.id==='again'||t.id==='again2'){cart={};$('#table').value='';tpick();$('#ph').value='';pt='later';document.querySelectorAll('#pts button').forEach((b,i)=>b.classList.toggle('on',i===0));$('#phw').style.display='none';list();go('menu')}
 });
-$('#table').addEventListener('input',bar);$('#ph').addEventListener('input',()=>{bar();if(phone().length===10)showBal($('#bal'));else $('#bal').textContent=''});
+tpick();$('#ph').addEventListener('input',()=>{bar();if(phone().length===10)showBal($('#bal'));else $('#bal').textContent=''});
 tabs();list();bar();
 </script></body></html>
