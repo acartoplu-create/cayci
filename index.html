@@ -38,7 +38,7 @@ input:focus{outline:none;border-color:var(--red)}
 .seg{display:grid;grid-template-columns:1fr 1fr;gap:8px}.seg button{padding:12px 6px;border-radius:14px;border:1.5px solid var(--line);background:#fff;font-weight:700;font-size:13.5px;color:var(--ink)}.seg button.on{border-color:var(--red);background:#fdeceb;color:var(--red)}
 .err{color:var(--red);font-size:13px;margin-top:8px;min-height:18px}
 #tp .z{font-size:12px;font-weight:800;letter-spacing:.06em;margin:10px 0 6px}#tp .g{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}#tp .g button{padding:13px 0;border-radius:14px;border:1.5px solid var(--line);background:#fff;font-size:16px;font-weight:700;color:var(--ink)}#tp .g button.on{background:var(--red);border-color:var(--red);color:#fff}</style></head><body><div id="app">
-<section class="screen on" id="s-menu"><header><h1>Çaycı</h1><small>Masadan sipariş ver · Ödemeyi sonda yap</small></header><div class="tabs" id="tabs"></div><div class="list" id="list"></div></section>
+<section class="screen on" id="s-menu"><header><h1>Çaycı</h1><small>Masadan sipariş ver · Ödemeyi sonda yap</small></header><div id="mbal" style="display:none;margin:10px 14px 0;padding:12px 14px;border-radius:14px;background:#fff;border:1px solid var(--line);font-weight:700"></div><div class="tabs" id="tabs"></div><div class="list" id="list"></div></section>
 <section class="screen" id="s-cart"><div class="pad"><button class="back" data-go="menu">‹ Menüye dön</button><h2>Sepetin</h2><div id="cartLines"></div>
 <label>Masan</label><input id="table" type="hidden"><div id="tp"></div>
 <label>Ödeme</label><div class="seg" id="pts"><button data-pt="later" class="on">Sonda öderim</button><button data-pt="kontor">Kontörle (üye)</button></div><div id="phw" style="display:none"><label>Üye telefon numaran</label><input id="ph" inputmode="tel" placeholder="05xx xxx xx xx"><div id="bal" style="font-size:13.5px;margin-top:8px;font-weight:600"></div></div><div id="sum"></div><div class="err" id="oerr"></div></div></section>
@@ -105,6 +105,7 @@ document.addEventListener('click',async e=>{const t=e.target.closest('button');i
  else if(t.id==='cpIban'){try{await navigator.clipboard.writeText('TR77 0013 4000 0115 2914 4000 02');t.textContent='Kopyalandı ✓'}catch(_){t.textContent='Kopyalanamadı'}}
  else if(t.id==='again'||t.id==='again2'){cart={};$('#table').value='';tpick();$('#ph').value='';pt='later';document.querySelectorAll('#pts button').forEach((b,i)=>b.classList.toggle('on',i===0));$('#phw').style.display='none';list();restore();go('menu')}
 });
+async function mbal(){const el=$('#mbal');let p='';try{p=localStorage.getItem('cph')||''}catch(_){}p=p.replace(/\D/g,'').slice(-10);if(p.length!==10){el.style.display='none';return}try{const d=await getDoc(doc(db,'balances',p));if(!d.exists()){el.style.display='none';return}const b=d.data(),k=Math.round(b.k*100)/100;el.style.display='block';el.style.color=b.k<0?'var(--red)':'var(--ok)';el.textContent='Kontör bakiyen: '+k.toLocaleString('tr-TR')+' kontör'+(b.limit?' · Hakkın: '+b.limit:'')}catch(_){}}
 tpick();restore();$('#ph').addEventListener('input',()=>{bar();if(phone().length===10)showBal($('#bal'));else $('#bal').textContent=''});
-tabs();list();bar();applyMenu();
+tabs();list();bar();applyMenu();$('#mbal').onclick=mbal;mbal();setInterval(mbal,20000);
 </script></body></html>
